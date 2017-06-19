@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Compile C to WebAssembly</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <meta name="apple-touch-fullscreen" content="yes" />
+  <meta name="format-detection" content="telephone=no, email=no" />
+</head>
+
+<body>
+  <h1>WebAssembly Demos</h1>
+  <p>The test result can be found in console.</p>
+
+  <script>
+    Module = {}
+    fetch('add2.wasm')    // preload wasm module
+      .then(response => response.arrayBuffer())
+      .then((buffer) => {
+        Module.wasmBinary = buffer;   // assign buffer to Module
+        const script = document.createElement('script');
+        script.src = 'add2.js';   // set asm.js source code
+        script.onload = () => {    // once script has loaded
+          console.log("call add from wasm: ", Module["asm"]._add(2, 3));
+        };
+        document.body.appendChild(script);
+      });
+  </script>
+</body>
+</html>
