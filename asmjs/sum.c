@@ -3,7 +3,13 @@
  *
  * How to compile:
  *
- * emcc sum.c -o sum.html
+ * > emcc sum.c -o index.html
+ *
+ * or
+ *
+ * > emcc sum.c -o sum.asm.js
+ * > node sum.asm.js
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
