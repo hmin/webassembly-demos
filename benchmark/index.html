@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fallback Example</title>
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-touch-fullscreen" content="yes" />
+  <meta name="format-detection" content="telephone=no, email=no" />
+  <script src="./helper.js"></script>
+  <script src="./sort.asm.js"></script>
+  <style>
+  table{border-collapse:collapse;}
+  th, td {
+    padding: 6px 18px; border: 1px solid #CCC;
+  }
+  </style>
+</head>
+
+<body>
+  <h1>Sorting Benchmark</h1>
+  <div id="output">Running Test...</div>
+
+  <script>
+    function loadWebAssembly(filename, imports = {}) {
+      return fetch(filename)
+        .then(response => response.arrayBuffer())
+        .then(buffer => WebAssembly.compile(buffer))
+        .then(module => {
+          imports.env = imports.env || {}
+          Object.assign(imports.env, {
+            memoryBase: 0,
+            tableBase: 0,
+            memory: new WebAssembly.Memory({ initial: 256, maximum: 256 }),
+            table: new WebAssembly.Table({ initial: 1, maximum: 2, element: 'anyfunc' })
+          })
+          return new WebAssembly.Instance(module, imports)
+        })
+    }
+
+    function loadASM(url, imports = {}) {
+      return fetch(url)
+        .then(response => response.text())
+        .then(code => {
+          var f = new Function(code);
+          return f;
+        }).then(factory => { factory(); return {exports: Module["asm"]}; });
+      
+    }
+
+    function loadJS(url, imports = {}) {
+      return fetch(url)
+        .then(response => response.text())
+        .then(code => new Function('imports', `return (${code})()`))
+        .then(factory => { return {exports: factory(imports) }})
+    }
+
+    function startTest (fn) {
+      return loadJS('./js/sort.js')
+        .then(instance => {
+          return fn('JavaScript', instance)
+        })
+        .then(instance => {
+          return loadWebAssembly('./sort.wasm').then(ins => fn('WebAssembly', ins))
+        })
+        .then(instance => {
+          return loadASM("./sort.asm.js").then(ins => fn('asm.js', ins))
+        })
+    }
+
+    const result = []
+
+    startTest((type, instance) => {
+      const setup = instance.exports.setup || instance.exports._setup;
+      const sort = instance.exports.sort || instance.exports._sort
+
+      const iterations = [1, 2, 3, 10, 50, 100]
+
+      for (let i = 0; i < iterations.length; ++i) {
+        setup();
+        const beg = performance.now()
+        //console.time(type);
+        sort(iterations[i]);
+        //console.timeEnd(type);
+        const end = performance.now()
+
+        if (!result[i]) {
+          result[i] = { n: iterations[i] }
+        }
+        result[i][type] = end - beg
+      }
+
+      return instance
+    }).then(() => {
+      result.forEach(group => {
+        group.Ratio = group['JavaScript']/group['WebAssembly']
+      })
+      output.innerHTML = ''
+      output.appendChild(createTable(result))
+    })
+  </script>
+</body>
+</html>
